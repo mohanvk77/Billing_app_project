@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Billio - Smart Billing</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons (Modern open source icons) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- SheetJS for Excel parsing -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <!-- Chart.js for beautiful analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- App Container -->
+    <div class="app-container">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="ph-fill ph-receipt"></i>
+                    <h1>Billio</h1>
+                </div>
+                <div class="header-actions" style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button id="btn-view-history" class="icon-btn" aria-label="View History" title="Bill History">
+                        <i class="ph ph-clock-counter-clockwise"></i>
+                    </button>
+                    <button id="theme-toggle" class="icon-btn" aria-label="Toggle Theme">
+                        <i class="ph ph-moon"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="app-main">
+            
+            <!-- Dashboard View -->
+            <section id="view-dashboard" class="view active">
+                <div class="view-header">
+                    <h2>Dashboard</h2>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card glass-panel">
+                        <div class="stat-icon"><i class="ph ph-currency-circle-dollar"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label">Today's Sales</span>
+                            <h3 id="stat-sales" class="stat-value">₹0.00</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel">
+                        <div class="stat-icon"><i class="ph ph-calendar"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label">This Month</span>
+                            <h3 id="stat-sales-month" class="stat-value">₹0.00</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel">
+                        <div class="stat-icon"><i class="ph ph-receipt"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Bills</span>
+                            <h3 id="stat-bills" class="stat-value">0</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel">
+                        <div class="stat-icon"><i class="ph ph-users"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Clients</span>
+                            <h3 id="stat-customers" class="stat-value">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sales Trends Chart Card -->
+                <div class="chart-card glass-panel dashboard-section">
+                    <h3>Sales Trends (Last 7 Days)</h3>
+                    <div class="chart-container">
+                        <canvas id="sales-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Top Sellers & Stock Warnings Split -->
+                <div class="dashboard-split dashboard-section">
+                    <div class="widget-card glass-panel">
+                        <h3>Top Selling Items</h3>
+                        <div id="top-selling-list" class="mini-data-list">
+                            <div class="empty-state">No sales yet</div>
+                        </div>
+                    </div>
+                    <div class="widget-card glass-panel">
+                        <h3>Low Stock Warnings</h3>
+                        <div id="low-stock-list" class="mini-data-list">
+                            <div class="empty-state">All items well stocked</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="recent-activity dashboard-section">
+                    <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                        <h3>Recent Bills</h3>
+                        <button id="btn-dashboard-view-all" class="btn btn-secondary btn-sm">View All</button>
+                    </div>
+                    <div id="recent-bills-list" class="list-container glass-panel">
+                        <!-- Bills injected here -->
+                        <div class="empty-state">No recent activity</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- POS / Billing View -->
+            <section id="view-pos" class="view">
+                <div class="view-header">
+                    <h2>New Bill</h2>
+                </div>
+                <div class="pos-container">
+                    <div class="pos-customer-section glass-panel">
+                        <label for="pos-customer">Customer</label>
+                        <select id="pos-customer" class="form-control">
+                            <option value="">Select Customer...</option>
+                        </select>
+                    </div>
+
+                    <div class="pos-product-section glass-panel">
+                        <div class="search-input-wrapper">
+                            <i class="ph ph-magnifying-glass"></i>
+                            <input type="text" id="pos-search" placeholder="Search products..." autocomplete="off">
+                        </div>
+                        <div id="pos-product-list" class="pos-product-grid">
+                            <!-- Products will be injected here -->
+                        </div>
+                    </div>
+
+                    <div class="pos-cart glass-panel">
+                        <div class="cart-header">
+                            <h3>Cart Items</h3>
+                        </div>
+                        <div id="pos-cart-items" class="cart-items">
+                            <div class="empty-state">Cart is empty</div>
+                        </div>
+                        <div class="cart-summary">
+                            <div class="summary-row">
+                                <span>Subtotal</span>
+                                <span id="pos-subtotal">₹0.00</span>
+                            </div>
+                            <div class="summary-row total-row">
+                                <span>Total</span>
+                                <span id="pos-total">₹0.00</span>
+                            </div>
+                            <button id="pos-checkout-btn" class="btn btn-primary btn-block" disabled>
+                                Generate Bill <i class="ph-bold ph-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Products View -->
+            <section id="view-products" class="view">
+                <div class="view-header">
+                    <h2>Products</h2>
+                    <button id="btn-add-product" class="btn btn-primary btn-sm">
+                        <i class="ph ph-plus"></i> Add
+                    </button>
+                </div>
+                <div id="products-list" class="data-list glass-panel">
+                    <!-- Products injected here -->
+                    <div class="empty-state">No products found</div>
+                </div>
+            </section>
+
+            <!-- Purchases / Stock View -->
+            <section id="view-purchases" class="view">
+                <div class="view-header">
+                    <h2>Stock Import</h2>
+                </div>
+
+                <!-- Two cards: Excel upload + Manual Entry -->
+                <div class="stock-import-grid">
+                    <!-- Excel Upload Card -->
+                    <div class="glass-panel stock-card">
+                        <i class="ph ph-file-xls stock-card-icon" style="color: var(--success-color);"></i>
+                        <h3>Import from File</h3>
+                        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem;">
+                            Upload an Excel (.xlsx) or CSV file to add new products or update stock in bulk.<br>
+                            Expected columns: <strong>Product Name, Quantity, Price, SKU</strong>
+                        </p>
+                        <div class="file-upload-wrapper">
+                            <button class="btn btn-secondary btn-block" onclick="document.getElementById('excel-upload').click()">
+                                <i class="ph ph-upload-simple"></i> Select File
+                            </button>
+                            <input type="file" id="excel-upload" accept=".xlsx, .xls, .csv" style="display: none;">
+                        </div>
+                    </div>
+
+                    <!-- Manual Entry Card -->
+                    <div class="glass-panel stock-card">
+                        <i class="ph ph-pencil-simple-line stock-card-icon" style="color: var(--primary-color);"></i>
+                        <h3>Manual Stock Update</h3>
+                        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem;">
+                            Select an existing product and add stock manually. Optionally update its price.
+                        </p>
+                        <form id="form-manual-stock">
+                            <div class="form-group">
+                                <label for="manual-stock-product">Select Product</label>
+                                <select id="manual-stock-product" class="form-control" required>
+                                    <option value="">Select a product...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="manual-stock-qty">Quantity to Add</label>
+                                <input type="number" id="manual-stock-qty" class="form-control" min="1" step="1" placeholder="e.g. 50" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="manual-stock-price">Update Price ₹ <span style="font-weight: 400; opacity: 0.7;">(optional)</span></label>
+                                <input type="number" id="manual-stock-price" class="form-control" min="0" step="0.01" placeholder="Leave blank to keep current">
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">
+                                <i class="ph ph-plus-circle"></i> Add Stock
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="recent-activity" style="margin-top: 1.5rem;">
+                    <h3>Recent Imports</h3>
+                    <div id="import-log" class="list-container glass-panel">
+                        <div class="empty-state">No imports yet</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Customers View -->
+            <section id="view-customers" class="view">
+                <div class="view-header">
+                    <h2>Customers</h2>
+                    <button id="btn-add-customer" class="btn btn-primary btn-sm">
+                        <i class="ph ph-plus"></i> Add
+                    </button>
+                </div>
+                <div id="customers-list" class="data-list glass-panel">
+                    <!-- Customers injected here -->
+                    <div class="empty-state">No customers found</div>
+                </div>
+            </section>
+
+            <!-- Bill History View -->
+            <section id="view-history" class="view">
+                <div class="view-header">
+                    <h2>Bill History</h2>
+                </div>
+                <div class="history-controls glass-panel">
+                    <div class="search-input-wrapper">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <input type="text" id="history-search" placeholder="Search Invoice ID or Customer name..." autocomplete="off">
+                    </div>
+                    <div class="filter-group">
+                        <select id="history-filter-date" class="form-control">
+                            <option value="all">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="7days">Last 7 Days</option>
+                            <option value="month">This Month</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="history-summary-bar" class="history-summary glass-panel">
+                    <div>Filtered Total: <strong id="history-filtered-total">₹0.00</strong></div>
+                    <div>Bills Count: <strong id="history-filtered-count">0</strong></div>
+                </div>
+
+                <div id="history-list" class="data-list glass-panel">
+                    <div class="empty-state">No bills recorded yet</div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav glass-panel">
+            <a href="#dashboard" class="nav-item active" data-target="view-dashboard">
+                <i class="ph ph-squares-four"></i>
+                <span>Home</span>
+            </a>
+            <a href="#pos" class="nav-item" data-target="view-pos">
+                <div class="nav-fab">
+                    <i class="ph-bold ph-plus"></i>
+                </div>
+                <span>Bill</span>
+            </a>
+            <a href="#products" class="nav-item" data-target="view-products">
+                <i class="ph ph-package"></i>
+                <span>Items</span>
+            </a>
+            <a href="#customers" class="nav-item" data-target="view-customers">
+                <i class="ph ph-users"></i>
+                <span>Clients</span>
+            </a>
+            <a href="#purchases" class="nav-item" data-target="view-purchases">
+                <i class="ph ph-truck"></i>
+                <span>Stock</span>
+            </a>
+        </nav>
+
+        <!-- Modals -->
+        
+        <!-- Product Modal -->
+        <div id="modal-product" class="modal">
+            <div class="modal-content glass-panel">
+                <div class="modal-header">
+                    <h3 id="product-modal-title">Add Product</h3>
+                    <button class="close-modal icon-btn"><i class="ph ph-x"></i></button>
+                </div>
+                <form id="form-product">
+                    <input type="hidden" id="product-id">
+                    <div class="form-group">
+                        <label>Product Name</label>
+                        <input type="text" id="product-name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Price (₹)</label>
+                        <input type="number" id="product-price" class="form-control" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>SKU / Barcode (Optional)</label>
+                        <input type="text" id="product-sku" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Initial Stock Quantity</label>
+                        <input type="number" id="product-stock" class="form-control" step="1" min="0" value="0">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary btn-block">Save Product</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Customer Modal -->
+        <div id="modal-customer" class="modal">
+            <div class="modal-content glass-panel">
+                <div class="modal-header">
+                    <h3 id="customer-modal-title">Add Customer</h3>
+                    <button class="close-modal icon-btn"><i class="ph ph-x"></i></button>
+                </div>
+                <form id="form-customer">
+                    <input type="hidden" id="customer-id">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="customer-name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="tel" id="customer-phone" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address (Optional)</label>
+                        <input type="email" id="customer-email" class="form-control">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary btn-block">Save Customer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Invoice Modal -->
+        <div id="modal-invoice" class="modal">
+            <div class="modal-content invoice-modal glass-panel">
+                <div class="modal-header">
+                    <h3>Invoice Created</h3>
+                    <button class="close-modal icon-btn"><i class="ph ph-x"></i></button>
+                </div>
+                <div id="invoice-receipt" class="receipt-preview">
+                    <!-- Receipt content injected here -->
+                </div>
+                <div class="form-actions">
+                    <button id="btn-print-invoice" class="btn btn-secondary"><i class="ph ph-printer"></i> Print</button>
+                    <button class="btn btn-primary close-modal">Done</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer History Modal -->
+        <div id="modal-customer-history" class="modal">
+            <div class="modal-content glass-panel" style="max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="modal-header">
+                    <h3>Customer Spend Profile</h3>
+                    <button class="close-modal icon-btn"><i class="ph ph-x"></i></button>
+                </div>
+                <div class="customer-profile-details" style="overflow-y: auto; flex: 1;">
+                    <div class="profile-info-header" style="margin-bottom: 1.5rem;">
+                        <h4 id="cust-profile-name" style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem;">-</h4>
+                        <p id="cust-profile-contact" style="color: var(--text-secondary); font-size: 0.875rem;">-</p>
+                    </div>
+                    
+                    <!-- Metrics grid -->
+                    <div class="profile-metrics-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.5rem;">
+                        <div class="metric-card" style="background: var(--surface-solid); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-md); text-align: center;">
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">Total Spent</div>
+                            <div id="cust-metric-spent" style="font-size: 1.1rem; font-weight: 700; margin-top: 0.25rem; color: var(--primary-color);">₹0.00</div>
+                        </div>
+                        <div class="metric-card" style="background: var(--surface-solid); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-md); text-align: center;">
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">Bills Count</div>
+                            <div id="cust-metric-count" style="font-size: 1.1rem; font-weight: 700; margin-top: 0.25rem;">0</div>
+                        </div>
+                        <div class="metric-card" style="background: var(--surface-solid); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-md); text-align: center;">
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">Avg Bill</div>
+                            <div id="cust-metric-avg" style="font-size: 1.1rem; font-weight: 700; margin-top: 0.25rem;">₹0.00</div>
+                        </div>
+                    </div>
+                    
+                    <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem;">Invoice History</h4>
+                    <div id="cust-profile-bills" class="mini-data-list">
+                        <!-- Customer bills injected here -->
+                        <div class="empty-state">No purchases recorded</div>
+                    </div>
+                </div>
+                <div class="form-actions" style="margin-top: 1rem;">
+                    <button class="btn btn-secondary btn-block close-modal">Close</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="db.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
