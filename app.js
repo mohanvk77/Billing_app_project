@@ -83,6 +83,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if(targetId === 'view-pos') runSafely(populatePOSCustomers);
                 if(targetId === 'view-products') runSafely(loadProductsData);
                 if(targetId === 'view-customers') runSafely(loadCustomersData);
+                if(targetId === 'view-history') runSafely(loadHistoryData);
                 if(targetId === 'view-purchases') runSafely(populateStockProducts);
             });
         });
@@ -988,17 +989,33 @@ document.addEventListener('DOMContentLoaded', async () => {
             const customer = custs.find(c => c.id === Number(bill.customerId));
             const customerName = customer ? customer.name : 'Walk-in Customer';
             const customerPhone = customer ? ` (${customer.phone})` : '';
+            
+            // Format list of items
+            const itemsList = bill.items.map(item => `
+                <span class="bill-item-tag" style="display: inline-block; background: rgba(0,0,0,0.03); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; margin: 0.2rem 0.2rem 0 0; border: 1px solid rgba(0,0,0,0.08);">
+                    ${item.product.name} (x${item.qty})
+                </span>
+            `).join('');
+
             return `
-                <div class="list-item">
-                    <div class="item-details">
-                        <h4>Invoice #${bill.id}</h4>
-                        <p style="margin: 0.15rem 0;"><strong>Billed to:</strong> ${customerName}${customerPhone}</p>
-                        <p>${new Date(bill.date).toLocaleString()} • ${bill.items.length} items</p>
+                <div class="list-item" style="flex-direction: column; align-items: stretch; gap: 0.5rem; padding: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                        <div class="item-details">
+                            <h4 style="margin: 0;">Invoice #${bill.id}</h4>
+                            <p style="margin: 0.25rem 0;"><strong>Billed to:</strong> ${customerName}${customerPhone}</p>
+                            <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">${new Date(bill.date).toLocaleString()}</p>
+                        </div>
+                        <div class="item-actions" style="align-items: center; display: flex; gap: 0.25rem;">
+                            <strong style="font-size: 1.1rem; margin-right: 0.5rem;">₹${bill.total.toFixed(2)}</strong>
+                            <button class="icon-btn" onclick="window.viewInvoiceDirect(${bill.id})" title="View Invoice"><i class="ph ph-eye"></i></button>
+                            <button class="icon-btn btn-danger" onclick="window.deleteBill(${bill.id})" title="Delete Bill"><i class="ph ph-trash"></i></button>
+                        </div>
                     </div>
-                    <div class="item-actions" style="align-items: center;">
-                        <strong style="font-size: 1.1rem; margin-right: 0.5rem;">₹${bill.total.toFixed(2)}</strong>
-                        <button class="icon-btn" onclick="window.viewInvoiceDirect(${bill.id})" title="View Invoice"><i class="ph ph-eye"></i></button>
-                        <button class="icon-btn btn-danger" onclick="window.deleteBill(${bill.id})" title="Delete Bill"><i class="ph ph-trash"></i></button>
+                    <div class="bill-items-summary" style="margin-top: 0.25rem; border-top: 1px dashed rgba(0,0,0,0.08); padding-top: 0.5rem; width: 100%;">
+                        <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.15rem;">Billed Items:</span>
+                        <div style="display: flex; flex-wrap: wrap;">
+                            ${itemsList}
+                        </div>
                     </div>
                 </div>
             `;

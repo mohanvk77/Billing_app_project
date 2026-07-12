@@ -1,104 +1,109 @@
 class AppDatabase {
     constructor() {
-        this.dbName = 'BillioDB';
-        this.dbVersion = 1;
-        this.db = null;
+        // Use relative path when hosted on the same server, otherwise fallback to local server
+        this.apiUrl = (window.location.protocol === 'file:') 
+            ? 'http://localhost:5000/api' 
+            : '/api';
     }
 
     async init() {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, this.dbVersion);
-
-            request.onerror = (event) => {
-                console.error("Database error:", event.target.error);
-                reject("Database error");
-            };
-
-            request.onsuccess = (event) => {
-                this.db = event.target.result;
-                resolve(this.db);
-            };
-
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-
-                // Create Stores if they don't exist
-                if (!db.objectStoreNames.contains('products')) {
-                    const productStore = db.createObjectStore('products', { keyPath: 'id', autoIncrement: true });
-                    productStore.createIndex('name', 'name', { unique: false });
-                    productStore.createIndex('sku', 'sku', { unique: false });
-                }
-
-                if (!db.objectStoreNames.contains('customers')) {
-                    const customerStore = db.createObjectStore('customers', { keyPath: 'id', autoIncrement: true });
-                    customerStore.createIndex('name', 'name', { unique: false });
-                    customerStore.createIndex('phone', 'phone', { unique: true });
-                }
-
-                if (!db.objectStoreNames.contains('bills')) {
-                    const billStore = db.createObjectStore('bills', { keyPath: 'id', autoIncrement: true });
-                    billStore.createIndex('date', 'date', { unique: false });
-                    billStore.createIndex('customerId', 'customerId', { unique: false });
-                }
-            };
-        });
+        try {
+            // Simple health check call to see if the Flask server is running
+            const response = await fetch(`${this.apiUrl}/products`);
+            if (!response.ok) {
+                throw new Error(`Server returned status ${response.status}`);
+            }
+            console.log("Connected to MongoDB via backend API successfully.");
+            return true;
+        } catch (error) {
+            console.error("Backend database connection failed:", error);
+            throw new Error("Unable to connect to backend server. Make sure server.py is running.");
+        }
     }
 
     // --- Generic CRUD Operations ---
     
     async add(storeName, data) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([storeName], 'readwrite');
-            const store = transaction.objectStore(storeName);
-            const request = store.add(data);
-
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        try {
+            const response = await fetch(`${this.apiUrl}/${storeName}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || `Failed to add item to ${storeName}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`Error in add(${storeName}):`, error);
+            throw error;
+        }
     }
 
     async update(storeName, data) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([storeName], 'readwrite');
-            const store = transaction.objectStore(storeName);
-            const request = store.put(data); // 'put' updates if key exists
-
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        try {
+            const response = await fetch(`${this.apiUrl}/${storeName}/${data.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || `Failed to update item in ${storeName}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`Error in update(${storeName}):`, error);
+            throw error;
+        }
     }
 
     async delete(storeName, id) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([storeName], 'readwrite');
-            const store = transaction.objectStore(storeName);
-            const request = store.delete(Number(id));
-
-            request.onsuccess = () => resolve(true);
-            request.onerror = () => reject(request.error);
-        });
+        try {
+            const response = await fetch(`${this.apiUrl}/${storeName}/${Number(id)}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || `Failed to delete item from ${storeName}`);
+            }
+            return true;
+        } catch (error) {
+            console.error(`Error in delete(${storeName}):`, error);
+            throw error;
+        }
     }
 
     async get(storeName, id) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([storeName], 'readonly');
-            const store = transaction.objectStore(storeName);
-            const request = store.get(Number(id));
-
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        try {
+            const response = await fetch(`${this.apiUrl}/${storeName}/${Number(id)}`);
+            if (!response.ok) {
+                if (response.status === 404) return null;
+                throw new Error(`Failed to get item from ${storeName}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`Error in get(${storeName}):`, error);
+            throw error;
+        }
     }
 
     async getAll(storeName) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([storeName], 'readonly');
-            const store = transaction.objectStore(storeName);
-            const request = store.getAll();
-
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        try {
+            const response = await fetch(`${this.apiUrl}/${storeName}`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch all items from ${storeName}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`Error in getAll(${storeName}):`, error);
+            throw error;
+        }
     }
 }
 
